@@ -1,0 +1,6 @@
+# User-provided tracks only — the game's six sample tracks are intentionally excluded.
+user-hajola-01.ogg|هجولة مغربية - زعبيطة
+user-hajola-02.ogg|قوليلي قوليلي
+user-remix-03.ogg|دي جي طرقوش - ريمكس
+user-sheila-04.ogg|الرد قاسي - شيلة ريمكس
+user-sheila-05.ogg|سرها يا هاجسي
