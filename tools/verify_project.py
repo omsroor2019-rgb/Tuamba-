@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline preflight checks for CITY LIFE 3D V7.2."""
+"""Offline preflight checks for CITY LIFE 3D V7.2.1."""
 from pathlib import Path
 import re
 import struct
@@ -92,8 +92,10 @@ def main() -> None:
         "#define CITY_GRID_SIDE       50",
         "#define BUILDINGS_PER_BLOCK  4",
         "#define MAX_BUILDINGS        10600",
-        "SaveStorageValue(21, 2)",
-        "LoadStorageValue(21) == 2",
+        '"citylife_profile.dat"',
+        "SaveFileData(SAVE_FILE_NAME, slots, (int)sizeof(slots))",
+        "LoadFileData(SAVE_FILE_NAME, &fileSize)",
+        "SAVE_SCHEMA_VERSION  2",
         "DrawNearbyBuildings(actor)",
         "HasClearShot(player, h->position)",
         "ResolveCameraCollision(desiredTarget, desiredCamera)",
@@ -102,21 +104,23 @@ def main() -> None:
     for token in checks:
         if token not in source:
             fail(f"source consistency check failed: {token}")
+    if "SaveStorageValue(" in source or "LoadStorageValue(" in source:
+        fail("non-public raylib example storage helpers are still being called")
     if "firePressed" in source or "fireWasDown" in source:
         fail("legacy single-tap fire input remains in source")
 
-    if '"app.version_name": "0.7.2"' not in workflow:
-        fail("Android version_name does not match V7.2")
-    if '"app.version_code": "11"' not in workflow:
-        fail("Android version_code does not match V7.2")
-    if "CITY-LIFE-3D-V7.2-GAMEPLAY-PERFORMANCE-APK" not in workflow:
-        fail("APK artifact name does not match V7.2")
+    if '"app.version_name": "0.7.3"' not in workflow:
+        fail("Android version_name does not match V7.2.1")
+    if '"app.version_code": "12"' not in workflow:
+        fail("Android version_code does not match V7.2.1")
+    if "CITY-LIFE-3D-V7.2.1-ANDROID-SAVE-FIX-APK" not in workflow:
+        fail("APK artifact name does not match V7.2.1")
 
     print("PASS: Arabic atlas 1024x1600 / 100 labels")
     print(f"PASS: {len(entries)} user OGG tracks only")
     print(f"PASS: {len(sfx_names)} readable WAV gameplay effects")
     print("PASS: source, save schema, city grid, camera and combat checks")
-    print("PASS: Android workflow version 0.7.2 / versionCode 11")
+    print("PASS: Android workflow version 0.7.3 / versionCode 12")
 
 
 if __name__ == "__main__":
