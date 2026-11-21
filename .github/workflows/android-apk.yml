@@ -1,4 +1,4 @@
-name: Build CITY LIFE 3D V7.2 Gameplay & Performance APK
+name: Build CITY LIFE 3D V7.2.1 Android Save Fix APK
 
 on:
   workflow_dispatch:
@@ -180,8 +180,8 @@ jobs:
               "app.application_id": "com.citylife3d.game",
               "app.category": "LAUNCHER", 
               "app.orientation": "landscape",
-              "app.version_name": "0.7.2",
-              "app.version_code": "11",
+              "app.version_name": "0.7.3",
+              "app.version_code": "12",
               "gl.version": "ES20",
               "display.keep_on": "true",
               "display.immersive": "true",
@@ -246,7 +246,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CITY-LIFE-3D-V7.2-GAMEPLAY-PERFORMANCE-APK
+          name: CITY-LIFE-3D-V7.2.1-ANDROID-SAVE-FIX-APK
           path: android-project/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
