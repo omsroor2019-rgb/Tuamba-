@@ -1,5 +1,5 @@
 /*
- * CITY LIFE 3D — ULTIMATE WORLD V7.2
+ * CITY LIFE 3D — ULTIMATE WORLD V7.2.1
  * Expanded Android open-world city-life game build.
  * C99 + raylib 5.5 + KarvinJ/raylib-mobile Android template.
  * This project is not affiliated with Rockstar Games or GTA.
@@ -50,6 +50,9 @@
 #define TARGET_COUNT         8
 #define SFX_COUNT            8
 #define SAVE_MAGIC           0x434C5637
+#define SAVE_SCHEMA_VERSION  2
+#define SAVE_DATA_SLOT_COUNT 33
+#define SAVE_FILE_NAME       "citylife_profile.dat"
 
 /* ---- Palette ----------------------------------------------------------- */
 static const Color C_SKY          = { 126, 196, 235, 255 };
@@ -2399,93 +2402,125 @@ static float StorageToFloat(int value) {
 static void SaveGameProgress(int cash, int points, int missionStep, int delivered,
                              Vector3 player, float playerYaw, const Vehicle *car,
                              float worldTime) {
+    /*
+     * SaveStorageValue/LoadStorageValue are helper functions from a raylib
+     * example, not part of the raylib 5.5 public API. Store the complete
+     * profile in one small binary file instead. On Android raylib routes
+     * SaveFileData/LoadFileData to the app's private writable data directory.
+     */
+    int32_t slots[SAVE_DATA_SLOT_COUNT] = { 0 };
     int ownedMask = (gWeaponOwned[0] ? 1 : 0) | (gWeaponOwned[1] ? 2 : 0) |
                     (gWeaponOwned[2] ? 4 : 0);
-    SaveStorageValue(0, SAVE_MAGIC);
-    SaveStorageValue(1, cash);
-    SaveStorageValue(2, points);
-    SaveStorageValue(3, missionStep);
-    SaveStorageValue(4, delivered);
-    SaveStorageValue(5, FloatToStorage(player.x));
-    SaveStorageValue(6, FloatToStorage(player.z));
-    SaveStorageValue(7, FloatToStorage(playerYaw));
-    SaveStorageValue(8, gWeaponIndex);
-    SaveStorageValue(9, gWeaponAmmo[0]);
-    SaveStorageValue(10, gWeaponReserve[0]);
-    SaveStorageValue(11, gWeaponAmmo[1]);
-    SaveStorageValue(12, gWeaponReserve[1]);
-    SaveStorageValue(13, gWeaponAmmo[2]);
-    SaveStorageValue(14, gWeaponReserve[2]);
-    SaveStorageValue(15, ownedMask);
-    SaveStorageValue(16, FloatToStorage(car->position.x));
-    SaveStorageValue(17, FloatToStorage(car->position.z));
-    SaveStorageValue(18, FloatToStorage(car->yaw));
-    SaveStorageValue(19, car->model);
-    SaveStorageValue(20, gBestDrift);
-    SaveStorageValue(21, 2); /* profile schema version */
-    SaveStorageValue(22, gPlayerHealth);
-    SaveStorageValue(23, FloatToStorage(gPlayerHunger));
-    SaveStorageValue(24, gPlayerArmor);
-    SaveStorageValue(25, FloatToStorage(worldTime));
-    SaveStorageValue(26, FloatToStorage(gClockHourOffset));
-    SaveStorageValue(27, gWaveNumber);
-    SaveStorageValue(28, gChapter);
-    SaveStorageValue(29, gZombieKills);
-    SaveStorageValue(30, gGangKills);
-    SaveStorageValue(31, gRadioIndex);
-    SaveStorageValue(32, gRadioEnabled ? 1 : 0);
+
+    slots[0]  = (int32_t)SAVE_MAGIC;
+    slots[1]  = (int32_t)cash;
+    slots[2]  = (int32_t)points;
+    slots[3]  = (int32_t)missionStep;
+    slots[4]  = (int32_t)delivered;
+    slots[5]  = (int32_t)FloatToStorage(player.x);
+    slots[6]  = (int32_t)FloatToStorage(player.z);
+    slots[7]  = (int32_t)FloatToStorage(playerYaw);
+    slots[8]  = (int32_t)gWeaponIndex;
+    slots[9]  = (int32_t)gWeaponAmmo[0];
+    slots[10] = (int32_t)gWeaponReserve[0];
+    slots[11] = (int32_t)gWeaponAmmo[1];
+    slots[12] = (int32_t)gWeaponReserve[1];
+    slots[13] = (int32_t)gWeaponAmmo[2];
+    slots[14] = (int32_t)gWeaponReserve[2];
+    slots[15] = (int32_t)ownedMask;
+    slots[16] = (int32_t)FloatToStorage(car->position.x);
+    slots[17] = (int32_t)FloatToStorage(car->position.z);
+    slots[18] = (int32_t)FloatToStorage(car->yaw);
+    slots[19] = (int32_t)car->model;
+    slots[20] = (int32_t)gBestDrift;
+    slots[21] = (int32_t)SAVE_SCHEMA_VERSION;
+    slots[22] = (int32_t)gPlayerHealth;
+    slots[23] = (int32_t)FloatToStorage(gPlayerHunger);
+    slots[24] = (int32_t)gPlayerArmor;
+    slots[25] = (int32_t)FloatToStorage(worldTime);
+    slots[26] = (int32_t)FloatToStorage(gClockHourOffset);
+    slots[27] = (int32_t)gWaveNumber;
+    slots[28] = (int32_t)gChapter;
+    slots[29] = (int32_t)gZombieKills;
+    slots[30] = (int32_t)gGangKills;
+    slots[31] = (int32_t)gRadioIndex;
+    slots[32] = (int32_t)(gRadioEnabled ? 1 : 0);
+
+    if (!SaveFileData(SAVE_FILE_NAME, slots, (int)sizeof(slots))) {
+        /* Saving is best-effort; keep the active game running if storage is unavailable. */
+        fprintf(stderr, "CITY LIFE 3D: could not save profile to %s\n", SAVE_FILE_NAME);
+    }
 }
 
 static bool LoadGameProgress(int *cash, int *points, int *missionStep, int *delivered,
                              Vector3 *player, float *playerYaw, Vehicle *car,
                              float *worldTime) {
-    if (LoadStorageValue(0) != SAVE_MAGIC) return false;
-    *cash = ClampF((float)LoadStorageValue(1), 0.0f, 99999999.0f);
-    *points = LoadStorageValue(2);
-    *missionStep = (int)ClampF((float)LoadStorageValue(3), 0.0f, (float)MISSION_COUNT);
-    *delivered = (int)ClampF((float)LoadStorageValue(4), 0.0f, 6.0f);
-    player->x = StorageToFloat(LoadStorageValue(5));
-    player->z = StorageToFloat(LoadStorageValue(6));
-    *playerYaw = StorageToFloat(LoadStorageValue(7));
+    int fileSize = 0;
+    unsigned char *fileData = LoadFileData(SAVE_FILE_NAME, &fileSize);
+    if (fileData == NULL) return false;
+
+    const int minLegacySize = 21 * (int)sizeof(int32_t);
+    if (fileSize < minLegacySize) {
+        UnloadFileData(fileData);
+        return false;
+    }
+
+    int32_t slots[SAVE_DATA_SLOT_COUNT] = { 0 };
+    int availableSlots = fileSize / (int)sizeof(int32_t);
+    if (availableSlots > SAVE_DATA_SLOT_COUNT) availableSlots = SAVE_DATA_SLOT_COUNT;
+    memcpy(slots, fileData, (size_t)availableSlots * sizeof(int32_t));
+    UnloadFileData(fileData);
+
+    if (slots[0] != (int32_t)SAVE_MAGIC) return false;
+
+    *cash = (int)ClampF((float)slots[1], 0.0f, 99999999.0f);
+    *points = (int)slots[2];
+    *missionStep = (int)ClampF((float)slots[3], 0.0f, (float)MISSION_COUNT);
+    *delivered = (int)ClampF((float)slots[4], 0.0f, 6.0f);
+    player->x = StorageToFloat((int)slots[5]);
+    player->z = StorageToFloat((int)slots[6]);
+    *playerYaw = StorageToFloat((int)slots[7]);
     if (!isfinite(*playerYaw)) *playerYaw = 0.0f;
     else *playerYaw = NormalizeAngle(*playerYaw);
-    gWeaponIndex = (int)ClampF((float)LoadStorageValue(8), 0.0f, 2.0f);
-    gWeaponAmmo[0] = (int)ClampF((float)LoadStorageValue(9), 0.0f, 500.0f);
-    gWeaponReserve[0] = (int)ClampF((float)LoadStorageValue(10), 0.0f, 3000.0f);
-    gWeaponAmmo[1] = (int)ClampF((float)LoadStorageValue(11), 0.0f, 500.0f);
-    gWeaponReserve[1] = (int)ClampF((float)LoadStorageValue(12), 0.0f, 3000.0f);
-    gWeaponAmmo[2] = (int)ClampF((float)LoadStorageValue(13), 0.0f, 500.0f);
-    gWeaponReserve[2] = (int)ClampF((float)LoadStorageValue(14), 0.0f, 3000.0f);
-    int mask = LoadStorageValue(15);
+    gWeaponIndex = (int)ClampF((float)slots[8], 0.0f, 2.0f);
+    gWeaponAmmo[0] = (int)ClampF((float)slots[9], 0.0f, 500.0f);
+    gWeaponReserve[0] = (int)ClampF((float)slots[10], 0.0f, 3000.0f);
+    gWeaponAmmo[1] = (int)ClampF((float)slots[11], 0.0f, 500.0f);
+    gWeaponReserve[1] = (int)ClampF((float)slots[12], 0.0f, 3000.0f);
+    gWeaponAmmo[2] = (int)ClampF((float)slots[13], 0.0f, 500.0f);
+    gWeaponReserve[2] = (int)ClampF((float)slots[14], 0.0f, 3000.0f);
+    int mask = (int)slots[15];
     for (int i = 0; i < 3; i++) gWeaponOwned[i] = (mask & (1 << i)) != 0;
     gWeaponOwned[0] = true; /* the starter pistol is always available */
     if (!gWeaponOwned[gWeaponIndex]) gWeaponIndex = 0;
-    car->position.x = StorageToFloat(LoadStorageValue(16));
-    car->position.z = StorageToFloat(LoadStorageValue(17));
-    car->yaw = StorageToFloat(LoadStorageValue(18));
+    car->position.x = StorageToFloat((int)slots[16]);
+    car->position.z = StorageToFloat((int)slots[17]);
+    car->yaw = StorageToFloat((int)slots[18]);
     if (!isfinite(car->yaw)) car->yaw = 0.0f;
     else car->yaw = NormalizeAngle(car->yaw);
-    car->model = (int)ClampF((float)LoadStorageValue(19), 0.0f, 11.0f);
-    gBestDrift = (int)ClampF((float)LoadStorageValue(20), 0.0f, 999999.0f);
-    if (LoadStorageValue(21) == 2) {
-        gPlayerHealth = (int)ClampF((float)LoadStorageValue(22), 1.0f, 100.0f);
-        gPlayerHunger = StorageToFloat(LoadStorageValue(23));
+    car->model = (int)ClampF((float)slots[19], 0.0f, 11.0f);
+    gBestDrift = (int)ClampF((float)slots[20], 0.0f, 999999.0f);
+
+    /* Fields 21..32 were added in save schema 2; older profiles keep defaults. */
+    if (availableSlots >= SAVE_DATA_SLOT_COUNT && slots[21] == SAVE_SCHEMA_VERSION) {
+        gPlayerHealth = (int)ClampF((float)slots[22], 1.0f, 100.0f);
+        gPlayerHunger = StorageToFloat((int)slots[23]);
         if (!isfinite(gPlayerHunger)) gPlayerHunger = 100.0f;
         gPlayerHunger = ClampF(gPlayerHunger, 0.0f, 100.0f);
-        gPlayerArmor = (int)ClampF((float)LoadStorageValue(24), 0.0f, 100.0f);
-        *worldTime = StorageToFloat(LoadStorageValue(25));
+        gPlayerArmor = (int)ClampF((float)slots[24], 0.0f, 100.0f);
+        *worldTime = StorageToFloat((int)slots[25]);
         if (!isfinite(*worldTime) || *worldTime < 0.0f || *worldTime > 100000000.0f)
             *worldTime = 0.0f;
-        gClockHourOffset = StorageToFloat(LoadStorageValue(26));
+        gClockHourOffset = StorageToFloat((int)slots[26]);
         if (!isfinite(gClockHourOffset)) gClockHourOffset = 8.0f;
         gClockHourOffset = fmodf(gClockHourOffset, 24.0f);
         if (gClockHourOffset < 0.0f) gClockHourOffset += 24.0f;
-        gWaveNumber = (int)ClampF((float)LoadStorageValue(27), 1.0f, 10000.0f);
-        gChapter = (int)ClampF((float)LoadStorageValue(28), 1.0f, 5.0f);
-        gZombieKills = (int)ClampF((float)LoadStorageValue(29), 0.0f, 999999.0f);
-        gGangKills = (int)ClampF((float)LoadStorageValue(30), 0.0f, 999999.0f);
-        gRadioIndex = (int)ClampF((float)LoadStorageValue(31), 0.0f, (float)(MUSIC_CAPACITY - 1));
-        gRadioEnabled = (LoadStorageValue(32) != 0) && (gMusicCount > 0);
+        gWaveNumber = (int)ClampF((float)slots[27], 1.0f, 10000.0f);
+        gChapter = (int)ClampF((float)slots[28], 1.0f, 5.0f);
+        gZombieKills = (int)ClampF((float)slots[29], 0.0f, 999999.0f);
+        gGangKills = (int)ClampF((float)slots[30], 0.0f, 999999.0f);
+        gRadioIndex = (int)ClampF((float)slots[31], 0.0f, (float)(MUSIC_CAPACITY - 1));
+        gRadioEnabled = (slots[32] != 0) && (gMusicCount > 0);
     }
     if (!isfinite(player->x) || !isfinite(player->z) || fabsf(player->x) > WORLD_HALF || fabsf(player->z) > WORLD_HALF) {
         player->x = 0.0f; player->z = 12.0f;
@@ -2502,7 +2537,7 @@ static bool LoadGameProgress(int *cash, int *points, int *missionStep, int *deli
 /* ---- Main game --------------------------------------------------------- */
 int main(void) {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(1280, 720, "CITY LIFE 3D - ULTIMATE WORLD V7.2");
+    InitWindow(1280, 720, "CITY LIFE 3D - ULTIMATE WORLD V7.2.1");
 #if !defined(PLATFORM_ANDROID)
     /* Desktop builds run from the project root; Android uses APK assets as cwd. */
     ChangeDirectory("assets");
@@ -3153,7 +3188,7 @@ int main(void) {
             DrawText("CITY LIFE 3D", screenW/2 - MeasureText("CITY LIFE 3D", 34)/2,
                      102, 34, C_WHITE);
             DrawArabicLabel(AR_ULTIMATE_WORLD, (Rectangle){(float)screenW*0.5f - 170.0f, 142.0f, 340.0f, 30.0f}, C_GOLD);
-            DrawText("ULTIMATE WORLD  |  V7.2", screenW/2 - MeasureText("ULTIMATE WORLD  |  V7.2", 16)/2,
+            DrawText("ULTIMATE WORLD  |  V7.2.1", screenW/2 - MeasureText("ULTIMATE WORLD  |  V7.2.1", 16)/2,
                      171, 16, C_WHITE);
             DrawPanel((Rectangle){(float)screenW*0.5f - 250.0f, 202.0f, 500.0f, 92.0f},
                       (Color){ 10, 19, 31, 226 }, Fade(C_GOLD, 0.50f));
