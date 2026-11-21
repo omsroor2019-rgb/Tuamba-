@@ -1,0 +1,18 @@
+رفع CITY LIFE 3D V7.2 إلى GitHub من الهاتف:
+
+1) فك ضغط CITY-LIFE-3D-V7.2-GAMEPLAY-PERFORMANCE-PROJECT.zip بواسطة MT Manager.
+2) افتح المجلد المستخرج.
+3) ارفع محتويات جذر المشروع إلى جذر مستودع GitHub مع الحفاظ على المسارات:
+   - src/main.c
+   - assets/music/...
+   - assets/sfx/...
+   - assets/ui/arabic-ui.png
+   - tools/verify_project.py
+   - .github/workflows/android-apk.yml
+4) لا ترفع المجلد نفسه كطبقة إضافية؛ يجب أن يكون مجلد src ظاهراً في جذر المستودع.
+5) افتح GitHub > Actions وشغّل:
+   Build CITY LIFE 3D V7.2 Gameplay & Performance APK
+6) عند النجاح نزّل Artifact:
+   CITY-LIFE-3D-V7.2-GAMEPLAY-PERFORMANCE-APK
+
+ملاحظة: نجاح الفحوص التمهيدية لا يعني أن APK قد تم اختباره على الهاتف. ثبّت APK وافحص اللمس والصوت والأداء والحفظ.
